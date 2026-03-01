@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Gemini</title>
+
+<style>
+body{
+margin:0;
+font-family:Segoe UI;
+background:#f1f5f9;
+display:flex;
+}
+
+/* Sidebar */
+.sidebar{
+width:230px;
+background:#0f172a;
+color:white;
+padding:20px;
+height:100vh;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
+}
+
+.sidebar h2{text-align:center;}
+
+.menu-btn{
+width:100%;
+padding:10px;
+margin:8px 0;
+background:#1e293b;
+border:none;
+color:white;
+cursor:pointer;
+border-radius:6px;
+}
+
+.menu-btn:hover{background:#334155;}
+
+/* Main */
+.main{flex:1;padding:20px;}
+
+.header{font-size:28px;font-weight:bold;margin-bottom:15px;}
+
+/* Cards */
+.card{
+background:white;
+padding:15px;
+margin-bottom:20px;
+border-radius:12px;
+box-shadow:0 4px 10px rgba(0,0,0,.1);
+}
+
+img,video{width:100%;border-radius:10px;margin-top:10px;}
+
+textarea,input{
+width:100%;
+padding:10px;
+margin:6px 0;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+padding:8px 12px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+margin-top:5px;
+}
+
+.primary{background:#2563eb;color:white;}
+.danger{background:red;color:white;}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+<div>
+<h2>AI Gemini</h2>
+</div>
+<div>
+<button class="menu-btn" onclick="toggleLogin()">Login</button>
+<button class="menu-btn" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<div class="main">
+
+<div class="header">AI Gemini Gallery</div>
+
+<!-- FIND POST BOX -->
+<div id="findBox" style="margin-bottom:15px;">
+<input type="number" id="findInput" placeholder="Enter Post No to Find">
+<button class="primary" onclick="findPost()">Find</button>
+</div>
+
+<!-- LOGIN BOX -->
+<div id="loginBox" style="display:none;">
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button class="primary" onclick="login()">Login</button>
+</div>
+
+<!-- UPLOAD BOX -->
+<div id="uploadBox" style="display:none;">
+<h3 id="uploadTitle">Upload</h3>
+
+<input type="file" id="fileInput" accept="image/*,video/*">
+<textarea id="desc" placeholder="Write Description"></textarea> <!-- Admin Only -->
+<textarea id="prompt" placeholder="Write Prompt (Required)"></textarea>
+<button class="primary" onclick="uploadPost()">Upload</button>
+</div>
+
+<!-- GALLERY -->
+<div id="gallery"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const adminEmail="fahadukk9@gmail.com";
+const adminPass="admin78610";
+let isAdmin=false;
+
+/* ================== LOGIN ================== */
+function toggleLogin(){
+let box=document.getElementById("loginBox");
+box.style.display = box.style.display==="block" ? "none" : "block";
+}
+
+function login(){
+let email=document.getElementById("email").value.trim();
+let pass=document.getElementById("password").value.trim();
+
+if(email===adminEmail && pass===adminPass){
+isAdmin=true;
+document.getElementById("uploadBox").style.display="block";
+document.getElementById("uploadTitle").innerText="Admin Upload (Image + Video)";
+document.getElementById("desc").style.display="block"; // Admin sees Description
+alert("Admin Login Successful");
+}else if(email && pass){
+isAdmin=false;
+document.getElementById("uploadBox").style.display="block";
+document.getElementById("uploadTitle").innerText="Public Upload (Image Only)";
+document.getElementById("desc").style.display="none"; // Public hides Description
+alert("Public Login Successful");
+}else{
+alert("Enter login details");
+return;
+}
+document.getElementById("loginBox").style.display="none";
+loadGallery();
+}
+
+function logout(){location.reload();}
+
+/* ================== UPLOAD POST ================== */
+function uploadPost(){
+let file=document.getElementById("fileInput").files[0];
+let description=isAdmin ? document.getElementById("desc").value.trim() : ""; // Public empty
+let promptText=document.getElementById("prompt").value.trim();
+
+if(!file){ alert("Select file"); return; }
+if(promptText===""){ alert("Prompt Required"); return; }
+
+/* Public users cannot upload videos */
+if(!isAdmin && file.type.startsWith("video")){
+alert("Only Admin Can Upload Video");
+return;
+}
+
+let reader=new FileReader();
+reader.onload=function(e){
+let posts=JSON.parse(localStorage.getItem("posts")||"[]");
+
+/* Auto post ID */
+let id=localStorage.getItem("postID")||0;
+id++;
+localStorage.setItem("postID",id);
+
+posts.push({
+id:id,
+type:file.type.startsWith("video")?"video":"image",
+src:e.target.result,
+desc:description,
+prompt:promptText
+});
+
+localStorage.setItem("posts",JSON.stringify(posts));
+
+loadGallery();
+
+/* Clear inputs */
+document.getElementById("fileInput").value="";
+document.getElementById("desc").value="";
+document.getElementById("prompt").value="";
+};
+
+reader.readAsDataURL(file);
+}
+
+/* ================== LOAD GALLERY ================== */
+function loadGallery(){
+let gallery=document.getElementById("gallery");
+gallery.innerHTML="";
+let posts=JSON.parse(localStorage.getItem("posts")||"[]");
+
+posts.forEach((p,index)=>{
+let card=document.createElement("div");
+card.className="card";
+
+/* TITLE */
+let title=document.createElement("h3");
+title.innerText="Post No: "+p.id;
+card.appendChild(title);
+
+/* MEDIA */
+if(p.type==="image"){
+let img=document.createElement("img");
+img.src=p.src;
+card.appendChild(img);
+}else{
+let vid=document.createElement("video");
+vid.src=p.src;
+vid.controls=true;
+card.appendChild(vid);
+}
+
+/* DESCRIPTION */
+if(isAdmin){ // Description shown only to admin
+let d=document.createElement("p");
+d.innerText=p.desc;
+card.appendChild(d);
+}else{
+if(p.desc){ // Show description to all if exists
+let d=document.createElement("p");
+d.innerText=p.desc;
+card.appendChild(d);
+}
+}
+
+/* PROMPT */
+let pr=document.createElement("textarea");
+pr.value=p.prompt;
+pr.readOnly=true;
+card.appendChild(pr);
+
+/* COPY PROMPT BUTTON */
+let copy=document.createElement("button");
+copy.className="primary";
+copy.innerText="Copy Prompt";
+copy.onclick=function(){
+navigator.clipboard.writeText(p.prompt);
+alert("Prompt Copied");
+};
+card.appendChild(copy);
+
+/* DELETE (ADMIN ONLY) */
+if(isAdmin){
+let del=document.createElement("button");
+del.className="danger";
+del.innerText="Delete";
+del.onclick=function(){
+posts.splice(index,1);
+localStorage.setItem("posts",JSON.stringify(posts));
+loadGallery();
+};
+card.appendChild(del);
+}
+
+gallery.appendChild(card);
+});
+}
+
+/* ================== FIND POST ================== */
+function findPost(){
+let number=document.getElementById("findInput").value;
+if(!number){ alert("Enter post number"); return; }
+
+let posts=JSON.parse(localStorage.getItem("posts")||"[]");
+let postCard=null;
+
+/* Find card by post id */
+for(let i=0;i<posts.length;i++){
+if(posts[i].id==number){
+postCard=document.getElementById("gallery").children[i];
+break;
+}
+}
+
+if(postCard){
+postCard.scrollIntoView({behavior:"smooth", block:"center"});
+postCard.style.border="3px solid #2563eb";
+setTimeout(()=>{postCard.style.border="none"},3000);
+}else{
+alert("Post Not Found");
+}
+}
+
+/* Load gallery on page open */
+loadGallery();
+</script>
+
+</body>
+</html>
